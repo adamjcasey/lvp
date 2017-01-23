@@ -1,8 +1,9 @@
+
 # cmake needs this line
 cmake_minimum_required(VERSION 2.8)
 
 # Define project name
-project(benchmark-frame-analysis)
+project(lvp)
 
 # Find OpenCV, you may need to set OpenCV_DIR variable
 # to the absolute path to the directory containing OpenCVConfig.cmake file
@@ -30,7 +31,9 @@ set(CMAKE_CXX_FLAGS "-std=gnu++11")
 # Declare the executable target built from your sources
 add_executable(benchmark-frame-analysis benchmark-frame-analysis.cpp)
 add_executable(raspicam-test raspicam_test.cpp)
+#add_executable(lvp-app app.cpp)
 
 # Link your application with OpenCV libraries
+#target_link_libraries(lvp-app ${OpenCV_LIBS} ${raspicam_CV_LIBS})
 target_link_libraries(benchmark-frame-analysis ${OpenCV_LIBS} ${raspicam_CV_LIBS})
 target_link_libraries(raspicam-test ${raspicam_CV_LIBS})

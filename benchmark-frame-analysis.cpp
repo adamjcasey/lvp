@@ -13,13 +13,13 @@ class BenchmarkCase
     public:
         BenchmarkCase(int w, int h, int z) : width(w), height(h), zoom(z) {}
 
-        static constexpr int NUM_FRAMES_PER_CASE = 5;
+        static constexpr int NUM_FRAMES_PER_CASE = 15;
 
         std::chrono::high_resolution_clock::time_point start_time[NUM_FRAMES_PER_CASE];
-        std::chrono::high_resolution_clock::time_point capture_time[NUM_FRAMES_PER_CASE];
-        std::chrono::high_resolution_clock::time_point zoom_time[NUM_FRAMES_PER_CASE];
-        std::chrono::high_resolution_clock::time_point display_time[NUM_FRAMES_PER_CASE];
-        std::chrono::high_resolution_clock::time_point contrast_time[NUM_FRAMES_PER_CASE];
+        int capture_time[NUM_FRAMES_PER_CASE];
+        int zoom_time[NUM_FRAMES_PER_CASE];
+        int display_time[NUM_FRAMES_PER_CASE];
+        int contrast_time[NUM_FRAMES_PER_CASE];
         std::chrono::high_resolution_clock::time_point cb_time[NUM_FRAMES_PER_CASE];
 
 
@@ -45,6 +45,9 @@ int num_test_cases = sizeof(testcases)/sizeof(BenchmarkCase);
 
 int main()
 {
+	bool contrast = false;
+ 	bool sharpen = false;
+ 	bool zoom = true;
     std::cout << "Built with OpenCV " << CV_VERSION << std::endl;
     raspicam::RaspiCam_Cv camera;
     cv::Mat image;
@@ -63,13 +66,18 @@ int main()
 		// Loop through the captures            
 		for (int j=0; j<BenchmarkCase::NUM_FRAMES_PER_CASE; j++)
 		{
-			testcases[i].start_time[j] = std::chrono::high_resolution_clock::now();
-
+			auto start_time = std::chrono::high_resolution_clock::now();
+			
 			//-- CAPTURE --------------------------------------------------------------------------
 			camera.grab();
 			camera.retrieve(image);
 			
-			testcases[i].capture_time[j] = std::chrono::high_resolution_clock::now();
+			auto capture_time = std::chrono::high_resolution_clock::now();
+			
+			testcases[i].capture_time[j] = std::chrono::duration_cast<std::chrono::milliseconds>(capture_time.time_since_epoch()).count() -
+                        std::chrono::duration_cast<std::chrono::milliseconds>(start_time.time_since_epoch()).count();
+		
+			
 
 			//-- ZOOM -----------------------------------------------------------------------------
 			// Calculate the region of interest of the zoom
@@ -81,87 +89,95 @@ int main()
 			// Perform the zoom
 			cv::Rect new_size(x, y, width, height);
 			cv::Mat tmp = image(new_size);
-			cv::resize(tmp, tmp, cv::Size(testcases[i].width, testcases[i].height), 0, 0, CV_INTER_LINEAR);
+			cv::resize(tmp, image, cv::Size(testcases[i].width, testcases[i].height), 0, 0, CV_INTER_LINEAR);
 
-			testcases[i].zoom_time[j] = std::chrono::high_resolution_clock::now();
+			auto zoom_time = std::chrono::high_resolution_clock::now();
+			testcases[i].zoom_time[j] = std::chrono::duration_cast<std::chrono::milliseconds>(zoom_time.time_since_epoch()).count() -
+                        std::chrono::duration_cast<std::chrono::milliseconds>(capture_time.time_since_epoch()).count();
+
+			
 
 			//-- CONTRAST --------------------------------------------------------------------------
-			//float alpha = 2.0f;
-			//int beta = 0;
-			//cv::Mat tmp2 = cv::Mat::zeros(tmp.size(), tmp.type());
-			//tmp.convertTo(tmp2, -1, alpha, beta);
-
-			testcases[i].contrast_time[j] = std::chrono::high_resolution_clock::now();
-
+			if (contrast) 
+			{
+				float alpha = 2.0f;
+				int beta = 20;
+				cv::Mat tmp = cv::Mat::zeros(tmp.size(), tmp.type());
+				tmp.convertTo(tmp, -1, alpha, beta);
+			}
+			
+			//-- SHARPEN ---------------------------------------------------------------------------
+			if (sharpen) 
+			{
+				cv::Matx33d sharpen_kernel( -0.1, -0.1, -0.1,
+									 -0.1,  0.9, -0.1,
+									 -0.1, -0.1, -0.1);
+				cv::filter2D(image, image, -1, sharpen_kernel, cv::Point2i(-1,-1), 0.0, cv::BORDER_REPLICATE);
+			}
+			auto contrast_time = std::chrono::high_resolution_clock::now();
+			testcases[i].contrast_time[j] = std::chrono::duration_cast<std::chrono::milliseconds>(contrast_time.time_since_epoch()).count() -
+                        std::chrono::duration_cast<std::chrono::milliseconds>(zoom_time.time_since_epoch()).count();
+                        
+             
 			//-- COLOR BALANCE ---------------------------------------------------------------------
-			//float percent = 1.0;
-			//float half_percent = percent / 200.0f;
+			float percent = 1.0;
+			float half_percent = percent / 200.0f;
 
 			//std::vector<cv::Mat> tmpsplit; 
-			//split(tmp2, tmpsplit);
+			//split(tmp, tmpsplit);
 			//for (int i=0; i<3; i++) 
 			//{
-				//// Find the low and high precentile values (based on the input percentile)
+				// Find the low and high precentile values (based on the input percentile)
 				//cv::Mat flat; 
 				//tmpsplit[i].reshape(1, 1).copyTo(flat);
 				//cv::sort(flat, flat, CV_SORT_EVERY_ROW + CV_SORT_ASCENDING);
 				//int lowval = flat.at<uchar>(cvFloor(((float)flat.cols) * half_percent));
 				//int highval = flat.at<uchar>(cvCeil(((float)flat.cols) * (1.0 - half_percent)));
 	
-				////saturate below the low percentile and above the high percentile
+				//saturate below the low percentile and above the high percentile
 				//tmpsplit[i].setTo(lowval,tmpsplit[i] < lowval);
 				//tmpsplit[i].setTo(highval,tmpsplit[i] > highval);
 				
-				////scale the channel
+				//scale the channel
 				//cv::normalize(tmpsplit[i], tmpsplit[i], 0, 255, cv::NORM_MINMAX);
 			//}
-			//merge(tmpsplit, tmp2);
+			//merge(tmpsplit, tmp);
 
 			testcases[i].cb_time[j] = std::chrono::high_resolution_clock::now();
 
-			//-- INVERT -----------------------------------------------------------------------------
+			//-- INVERT -----------------------------------------------------------------------------.time_since_epoch()).count()
 
 
 			//-- DISPLAY -----------------------------------------------------------------------------
 			cv::imshow("Name", tmp);
-			testcases[i].display_time[j] = std::chrono::high_resolution_clock::now();
+			auto display_time = std::chrono::high_resolution_clock::now();
+			testcases[i].display_time[j] = std::chrono::duration_cast<std::chrono::milliseconds>(display_time.time_since_epoch()).count() -
+                        std::chrono::duration_cast<std::chrono::milliseconds>(contrast_time.time_since_epoch()).count();
 
 
 
 			cv::waitKey(1);
         }
     }
-
+    
     // Display the test cases
     for (int i=0; i<num_test_cases; i++)
     {    
         printf("------------\r\n------------\r\nTest Case %d: Width: %.0f Height: %.0f Zoom: %.0f\r\n", i, testcases[i].width, testcases[i].height, testcases[i].zoom);
 
+		float total_zoom = 0;
+		float total_capture = 0;
+		float total_display = 0;
+		
         for (int j=0; j<BenchmarkCase::NUM_FRAMES_PER_CASE; j++)
         {
-            auto cap = std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].capture_time[j].time_since_epoch()).count() - 
-                        std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].start_time[j].time_since_epoch()).count();
-
-            auto zoom = std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].zoom_time[j].time_since_epoch()).count() - 
-                        std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].capture_time[j].time_since_epoch()).count();
-
-            auto contrast = std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].contrast_time[j].time_since_epoch()).count() - 
-                        std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].zoom_time[j].time_since_epoch()).count();
-
-            auto cb = std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].cb_time[j].time_since_epoch()).count() - 
-                        std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].contrast_time[j].time_since_epoch()).count();
-
-            auto display = std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].display_time[j].time_since_epoch()).count() - 
-                        std::chrono::duration_cast<std::chrono::milliseconds>(testcases[i].cb_time[j].time_since_epoch()).count();
-
-            printf("------------\r\nTiming Case %d\r\n", j+1);
-            printf("Capture Time: %ld\r\n", cap);
-            printf("Zoom Time: %ld\r\n", zoom);
-            printf("Contrast Time: %ld\r\n", contrast);
-            printf("Color Balance Time: %ld\r\n", cb);
-            printf("Display Time: %ld\r\n", display);
+			total_capture += testcases[i].capture_time[j];
+ 			total_zoom += testcases[i].zoom_time[j];
+ 			total_display += testcases[i].display_time[j];
         }
-
+		printf("Capture Time: %f\r\n", total_capture / static_cast<float>(BenchmarkCase::NUM_FRAMES_PER_CASE));
+		printf("Zoom Time: %f\r\n", total_zoom / static_cast<float>(BenchmarkCase::NUM_FRAMES_PER_CASE));
+		printf("Display Time: %f\r\n", total_display / static_cast<float>(BenchmarkCase::NUM_FRAMES_PER_CASE));
     }
     return 0;
 }
