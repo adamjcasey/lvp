@@ -30,10 +30,8 @@ set(CMAKE_CXX_FLAGS "-std=gnu++11")
 
 # Declare the executable target built from your sources
 add_executable(benchmark-frame-analysis benchmark-frame-analysis.cpp)
-add_executable(raspicam-test raspicam_test.cpp)
-#add_executable(lvp-app app.cpp)
+add_executable(lvp-app app.cpp)
 
 # Link your application with OpenCV libraries
-#target_link_libraries(lvp-app ${OpenCV_LIBS} ${raspicam_CV_LIBS})
+target_link_libraries(lvp-app ${OpenCV_LIBS} ${raspicam_CV_LIBS})
 target_link_libraries(benchmark-frame-analysis ${OpenCV_LIBS} ${raspicam_CV_LIBS})
-target_link_libraries(raspicam-test ${raspicam_CV_LIBS})
