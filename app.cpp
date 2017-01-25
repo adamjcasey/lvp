@@ -127,7 +127,7 @@ int main()
 {
     raspicam::RaspiCam_Cv camera;
     cv::Mat image;
-	camera.set( CV_CAP_PROP_FORMAT, CV_8UC1 );
+	camera.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
 	camera.set(CV_CAP_PROP_WHITE_BALANCE_RED_V, 0);
 
 	if (!camera.open()) 
