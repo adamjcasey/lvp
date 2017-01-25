@@ -5,35 +5,141 @@
 #include <cstdio>
 #include <iostream>
 #include <cmath>
-#include <raspicam/raspicam.h>
+#include <bcm2835.h>
 #include <raspicam/raspicam.h>
 #include <raspicam/raspicam_cv.h>
 
 // Static variables for actions
-bool invert = false;
-bool normal = false;
+bool invert_change = false;
+bool normal_change = false;
 bool zoom_change = false;
 
+// Events
+bool event_button_up = false;
+bool event_button_down = false;
+bool event_button_invert = false;
+
 // Static variables for debouncing
-bool last_button_up = true;
-bool last_button_down = true;
-bool last_button_invert = true;
+uint8_t last_button_up = 1;
+uint8_t last_button_down = 1;
+uint8_t last_button_invert = 1;
+
+// Capture and display variables
+float width = 1280.0f;
+float height = 960.0f;
+float zoom = 1.0f;
+bool invert = false;
+
+int x = floor((((width / zoom) * (zoom / 2.0)) - ((width / zoom) / 2.0)));
+int y = floor((((height / zoom) * (zoom / 2.0))- ((height / zoom) / 2.0)));
+int w = floor((width / zoom));
+int h = floor((height / zoom));
+
+// efine RPi GPIO pins
+#define PIN_UP 			RPI_GPIO_P1_4
+#define PIN_DOWN 		RPI_GPIO_P1_18
+#define PIN_CONTRAST 	RPI_GPIO_P1_24
+
+void debounce()
+{
+	uint8_t button_up = bcm2835_gpio_lev(PIN_UP);
+	if (button_up != last_button_up)
+	{
+		button_up = last_button_up;
+		if (button_up == 0)
+		{
+			std::cout << "Button Up Pressed" << std::endl;
+			event_button_up = true;
+		}
+	}
+	uint8_t button_down = bcm2835_gpio_lev(PIN_DOWN);
+	if (button_down != last_button_down)
+	{
+		button_down = last_button_down;
+		if (button_down == 0)
+		{
+			std::cout << "Button Down Pressed" << std::endl;
+			event_button_down = true;
+		}
+	}
+	uint8_t button_invert = bcm2835_gpio_lev(PIN_INVERT);
+	if (button_invert != last_button_invert)
+	{
+		button_invert = last_button_invert;
+		if (button_invert == 0)
+		{
+			std::cout << "Button Invert Pressed" << std::endl;
+			event_button_invert = true;
+		}
+	}
+}
+
+void handle_events()
+{
+	if (event_button_up)
+	{
+		event_button_up = false;
+		if ((int)zoom < 8)
+		{
+			zoom = (float)((int)zoom + 1);
+			zoom_change = true;
+		}
+	}
+	if (event_button_down)
+	{
+		event_button_down = false;
+		if ((int)zoom > 1)
+		{
+			zoom = (float)((int)zoom - 1);
+			zoom_change = true;
+		}
+	}
+	if (event_button_invert)
+	{
+		event_button_invert = false;
+		if (invert)
+		{
+			invert = false;
+			normal_change = true;
+		}
+		else
+		{
+			invert = true;
+			invert_change = true;
+		}
+	}
+}
+
+bool initializeGpio()
+{
+	if (!bcm2835_init())
+		return false;
+
+	// Set pins to be inputs
+    bcm2835_gpio_fsel(PIN_UP, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(PIN_DOWN, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(PIN_CONTRAST, BCM2835_GPIO_FSEL_INPT);
+
+    // With a pullup
+    bcm2835_gpio_set_pud(PIN_UP, BCM2835_GPIO_PUD_UP);
+    bcm2835_gpio_set_pud(PIN_DOWN, BCM2835_GPIO_PUD_UP);
+    bcm2835_gpio_set_pud(PIN_CONTRAST, BCM2835_GPIO_PUD_UP);
+
+    return true;
+}
 
 int main()
 {
-	float width = 1280.0f;
-	float height = 960.0f;
-	float zoom = 1.0f;
-
-	int x = floor((((width / zoom) * (zoom / 2.0)) - ((width / zoom) / 2.0)));
-	int y = floor((((height / zoom) * (zoom / 2.0))- ((height / zoom) / 2.0)));
-	int w = floor((width / zoom));
-	int h = floor((height / zoom));
-
     raspicam::RaspiCam_Cv camera;
     cv::Mat image;
 	camera.set( CV_CAP_PROP_FORMAT, CV_8UC1 );
 	camera.set(CV_CAP_PROP_WHITE_BALANCE_RED_V, 0);
+
+	if (!initializeGpio())
+	{
+		std::cout << "Error initializing the gpio" << std::endl;
+		return -1;
+	}
 
 	if (!camera.open()) 
 	{
@@ -48,15 +154,15 @@ int main()
 	while (1)
 	{
 		//-- INVERT --------------------------------------
-		if (invert) 
+		if (invert_change) 
 		{
 			camera.set(CV_CAP_PROP_MODE, raspicam::RASPICAM_IMAGE_EFFECT_NEGATIVE);
-			invert = false;
+			invert_change = false;
 		}
-		if (normal) 
+		if (normal_change) 
 		{
 			camera.set(CV_CAP_PROP_MODE, raspicam::RASPICAM_IMAGE_EFFECT_NONE);
-			normal = false;
+			normal_change = false;
 		}
 		if (zoom_change)
 		{
@@ -81,12 +187,19 @@ int main()
 		cv::imshow("Name", tmp);
 
 		//-- USER INPUT -------------------------------------------------------
-		debounce();
 		auto key = cv::waitKey(1);
+		if (key == 'q')
+			break;
+		else if (key == 'a')
+			event_button_down = true;
+		else if (key == 'z')
+			event_button_up = true;
+		else if (key == 'x')
+			event_button_invert = true;
+		debounce();
+		handle_events()
     }
     
 
     return 0;
 }
-
-
