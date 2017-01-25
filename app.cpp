@@ -5,7 +5,9 @@
 #include <cstdio>
 #include <iostream>
 #include <cmath>
-#include <bcm2835.h>
+#include <fstream>
+#include <string>
+#include <sstream>
 #include <raspicam/raspicam.h>
 #include <raspicam/raspicam_cv.h>
 
@@ -36,39 +38,50 @@ int w = floor((width / zoom));
 int h = floor((height / zoom));
 
 // efine RPi GPIO pins
-#define PIN_UP 			RPI_GPIO_P1_4
-#define PIN_DOWN 		RPI_GPIO_P1_18
-#define PIN_CONTRAST 	RPI_GPIO_P1_24
+#define PIN_UP 			"/sys/class/gpio/gpio4/value"
+#define PIN_DOWN 		"/sys/class/gpio/gpio23/value"
+#define PIN_INVERT 		"/sys/class/gpio/gpio24/value"
+
+uint8_t getval_gpio(const char * pin)
+{
+	std::string val;
+	uint8_t returnval = 0;
+    std::ifstream getvalgpio(pin);
+    getvalgpio >> val ;  //read gpio value
+
+    if (val != "0")
+        returnval = 1;
+
+    getvalgpio.close(); //close the value file
+    return returnval;
+}
 
 void debounce()
 {
-	uint8_t button_up = bcm2835_gpio_lev(PIN_UP);
+	uint8_t button_up = getval_gpio(PIN_UP);
 	if (button_up != last_button_up)
 	{
-		button_up = last_button_up;
+		last_button_up = button_up;
 		if (button_up == 0)
 		{
-			std::cout << "Button Up Pressed" << std::endl;
 			event_button_up = true;
 		}
 	}
-	uint8_t button_down = bcm2835_gpio_lev(PIN_DOWN);
+	uint8_t button_down = getval_gpio(PIN_DOWN);
 	if (button_down != last_button_down)
 	{
-		button_down = last_button_down;
+		last_button_down = button_down;
 		if (button_down == 0)
 		{
-			std::cout << "Button Down Pressed" << std::endl;
 			event_button_down = true;
 		}
 	}
-	uint8_t button_invert = bcm2835_gpio_lev(PIN_INVERT);
+	uint8_t button_invert = getval_gpio(PIN_INVERT);
 	if (button_invert != last_button_invert)
 	{
-		button_invert = last_button_invert;
+		last_button_invert = button_invert;
 		if (button_invert == 0)
 		{
-			std::cout << "Button Invert Pressed" << std::endl;
 			event_button_invert = true;
 		}
 	}
@@ -110,36 +123,12 @@ void handle_events()
 	}
 }
 
-bool initializeGpio()
-{
-	if (!bcm2835_init())
-		return false;
-
-	// Set pins to be inputs
-    bcm2835_gpio_fsel(PIN_UP, BCM2835_GPIO_FSEL_INPT);
-    bcm2835_gpio_fsel(PIN_DOWN, BCM2835_GPIO_FSEL_INPT);
-    bcm2835_gpio_fsel(PIN_CONTRAST, BCM2835_GPIO_FSEL_INPT);
-
-    // With a pullup
-    bcm2835_gpio_set_pud(PIN_UP, BCM2835_GPIO_PUD_UP);
-    bcm2835_gpio_set_pud(PIN_DOWN, BCM2835_GPIO_PUD_UP);
-    bcm2835_gpio_set_pud(PIN_CONTRAST, BCM2835_GPIO_PUD_UP);
-
-    return true;
-}
-
 int main()
 {
     raspicam::RaspiCam_Cv camera;
     cv::Mat image;
 	camera.set( CV_CAP_PROP_FORMAT, CV_8UC1 );
 	camera.set(CV_CAP_PROP_WHITE_BALANCE_RED_V, 0);
-
-	if (!initializeGpio())
-	{
-		std::cout << "Error initializing the gpio" << std::endl;
-		return -1;
-	}
 
 	if (!camera.open()) 
 	{
@@ -156,16 +145,20 @@ int main()
 		//-- INVERT --------------------------------------
 		if (invert_change) 
 		{
+			std::cout << "Invert ON" << std::endl;
 			camera.set(CV_CAP_PROP_MODE, raspicam::RASPICAM_IMAGE_EFFECT_NEGATIVE);
 			invert_change = false;
 		}
 		if (normal_change) 
 		{
+			std::cout << "Invert OFF" << std::endl;
 			camera.set(CV_CAP_PROP_MODE, raspicam::RASPICAM_IMAGE_EFFECT_NONE);
 			normal_change = false;
 		}
 		if (zoom_change)
 		{
+			std::cout << "Zoom: " << zoom << std::endl;
+
 			x = floor((((width / zoom) * (zoom / 2.0)) - ((width / zoom) / 2.0)));
 			y = floor((((height / zoom) * (zoom / 2.0))- ((height / zoom) / 2.0)));
 			w = floor((width / zoom));
@@ -197,7 +190,7 @@ int main()
 		else if (key == 'x')
 			event_button_invert = true;
 		debounce();
-		handle_events()
+		handle_events();
     }
     
 
