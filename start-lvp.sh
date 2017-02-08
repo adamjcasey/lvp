@@ -1,9 +1,7 @@
 #!/bin/bash
 
 # Setup GPIO
-echo "4" > /sys/class/gpio/unexport
-echo "23" > /sys/class/gpio/unexport
-echo "24" > /sys/class/gpio/unexport
+
 echo "4" > /sys/class/gpio/export
 echo "23" > /sys/class/gpio/export
 echo "24" > /sys/class/gpio/export

@@ -129,6 +129,8 @@ int main()
     cv::Mat image;
 	camera.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
 	camera.set(CV_CAP_PROP_WHITE_BALANCE_RED_V, 0);
+	camera.set(CV_CAP_PROP_FRAME_WIDTH, 1440);
+	camera.set(CV_CAP_PROP_FRAME_HEIGHT, 1080);
 
 	if (!camera.open()) 
 	{

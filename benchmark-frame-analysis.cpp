@@ -31,21 +31,9 @@ class BenchmarkCase
 BenchmarkCase testcases[] = 
 {
     BenchmarkCase(1280.0f, 960.0f, 1.0f),
-    BenchmarkCase(1280.0f, 960.0f, 2.0f),
-    BenchmarkCase(1280.0f, 960.0f, 3.0f),
-    BenchmarkCase(1280.0f, 960.0f, 4.0f),
-    BenchmarkCase(1280.0f, 960.0f, 5.0f),
-    BenchmarkCase(1280.0f, 960.0f, 6.0f),
-    BenchmarkCase(1280.0f, 960.0f, 7.0f),
     BenchmarkCase(1280.0f, 960.0f, 8.0f),
-    BenchmarkCase(1280.0f, 960.0f, 1.0f, true),
-    BenchmarkCase(1280.0f, 960.0f, 2.0f, true),
-    BenchmarkCase(1280.0f, 960.0f, 3.0f, true),
-    BenchmarkCase(1280.0f, 960.0f, 4.0f, true),
-    BenchmarkCase(1280.0f, 960.0f, 5.0f, true),
-    BenchmarkCase(1280.0f, 960.0f, 6.0f, true),
-    BenchmarkCase(1280.0f, 960.0f, 7.0f, true),
-    BenchmarkCase(1280.0f, 960.0f, 8.0f, true)
+    BenchmarkCase(1440.0f, 1080.0f, 1.0f),
+    BenchmarkCase(1440.0f, 1080.0f, 8.0f)
 };
 
 int num_test_cases = sizeof(testcases)/sizeof(BenchmarkCase);
@@ -70,20 +58,26 @@ int main(int argc,char **argv)
 	camera.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
 	camera.set(CV_CAP_PROP_WHITE_BALANCE_RED_V, 0);
 	
-    if (findParam ("-s", argc, argv) != -1)
-		sharpen = true;
-		
-	if (!camera.open()) 
-	{
-		std::cout << "Error opening the camera" << std::endl;
-		return -1;
-	}
-	std::cout << "Camera is opened" << std::endl;
-    cvNamedWindow("Name", CV_WINDOW_NORMAL);
-    cvSetWindowProperty("Name", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+
+    
 	// Cycle through the test cases
 	for (int i=0; i<num_test_cases; i++)
 	{
+		camera.set(CV_CAP_PROP_FRAME_WIDTH, testcases[i].width);
+		camera.set(CV_CAP_PROP_FRAME_HEIGHT, testcases[i].height);
+	
+		if (findParam ("-s", argc, argv) != -1)
+			sharpen = true;
+			
+		if (!camera.open()) 
+		{
+			std::cout << "Error opening the camera" << std::endl;
+			return -1;
+		}
+		std::cout << "Camera is opened" << std::endl;
+		cvNamedWindow("Name", CV_WINDOW_NORMAL);
+		cvSetWindowProperty("Name", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+    
 		if (testcases[i].invert)
 			camera.set(CV_CAP_PROP_MODE, raspicam::RASPICAM_IMAGE_EFFECT_NEGATIVE);
 			
@@ -95,7 +89,7 @@ int main(int argc,char **argv)
 			//-- CAPTURE --------------------------------------------------------------------------
 			camera.grab();
 			camera.retrieve(image);
-			
+
 			auto capture_time = std::chrono::high_resolution_clock::now();
 			
 			testcases[i].capture_time[j] = std::chrono::duration_cast<std::chrono::milliseconds>(capture_time.time_since_epoch()).count() -
@@ -156,6 +150,8 @@ int main(int argc,char **argv)
 
 			cv::waitKey(1);
         }
+        
+        camera.release();
     }
     
     // Display the test cases
