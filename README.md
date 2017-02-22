@@ -45,7 +45,14 @@ This includes the following essential packages:
 
 ## Start On Boot
 
-- In order to start the application on boot, the following modification is made to 
+In order to start the application on boot, the following modification is made to the autoboot script.
+
+```
+cd ~/.config/lxsession/LXDE-pi
+sudo nano autostart
+```
+
+Add `@/home/pi/lvp/start-lvp.sh `on a new line. 
 
 ## Stop Blanking of Screen
 
@@ -54,6 +61,7 @@ Without keyboard or mouse activity, the screen will blank after 5 minutes.  The 
 - `sudo nano /etc/kbd/config`
 
 Change these two lines.
+
  ```
 # screen blanking timeout. monitor remains on, but the screen is cleared to
 # range: 0-60 min (0==never) kernels I've looked at default to 10 minutes.
@@ -77,6 +85,23 @@ and insert this line:
 ## Overview of Application
 
 Here is an outline of the application
+
+### start-lvp.sh
+
+This script sets up the GPIO and then starts the application.
+
+### app.cpp
+
+This contains the main source.  It does the following:
+
+- Initializes the camera
+- Debounces GPIO
+- Applies zoom and invert events to the frames
+- Displays the frames
+
+### benchmark-frame-analysis.cpp
+
+This file contains code to benchmark various operations, and was used during development.  It may be useful in the future.
 
 
 
