@@ -49,7 +49,30 @@ This includes the following essential packages:
 
 ## Stop Blanking of Screen
 
-- Without keyboard or mouse activity, the screen will blank after 5 minutes.  The following modifications need to be made.
+Without keyboard or mouse activity, the screen will blank after 5 minutes.  The following modifications need to be made.
+
+- `sudo nano /etc/kbd/config`
+
+Change these two lines.
+ ```
+# screen blanking timeout. monitor remains on, but the screen is cleared to
+# range: 0-60 min (0==never) kernels I've looked at default to 10 minutes.
+# (see linux/drivers/char/console.c)
+BLANK_TIME=0 
+```
+```
+# Powerdown time. The console will go to DPMS Off mode POWERDOWN_TIME
+# minutes _after_ blanking. (POWERDOWN_TIME + BLANK_TIME after the last input)
+POWERDOWN_TIME=0 
+```
+
+- `sudo nano /etc/lightdm/lightdm.conf`
+
+In that file, look for:
+`[SeatDefault]`
+
+and insert this line:
+`xserver-command=X -s 0 dpms`
 
 ## Overview of Application
 
